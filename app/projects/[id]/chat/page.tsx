@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ChatMessage } from "@/components/ChatMessage"
 import { ChatInput } from "@/components/ChatInput"
 import { ConfirmModal } from "@/components/ConfirmModal"
@@ -29,7 +30,43 @@ export default function ProjectChatPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingSQL, setPendingSQL] = useState("")
   const [isExecuting, setIsExecuting] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const handleConnect = async (projectId: number) => {
+    setIsConnecting(true)
+    try {
+      const response = await apiClient.connectDatabase(projectId)
+      if (response.success) {
+        setIsConnected(true)
+        toast.success("Connected to database successfully")
+      } else {
+        toast.error(response.error || "Failed to connect to database")
+      }
+    } catch (error) {
+      toast.error("An error occurred while connecting to database")
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
+  const handleDisconnect = async (projectId: number) => {
+    setIsConnecting(true)
+    try {
+      const response = await apiClient.disconnectDatabase(projectId)
+      if (response.success) {
+        setIsConnected(false)
+        toast.success("Disconnected from database")
+      } else {
+        toast.error(response.error || "Failed to disconnect from database")
+      }
+    } catch (error) {
+      toast.error("An error occurred while disconnecting from database")
+    } finally {
+      setIsConnecting(false)
+    }
+  }
 
   useEffect(() => {
     if (!authUtils.isAuthenticated()) {
@@ -42,17 +79,16 @@ export default function ProjectChatPage() {
 
       const projectResponse = await apiClient.getProject(projectId)
       if (!projectResponse.success || !projectResponse.data) {
-        toast({
-          title: "Project not found",
-          description: "The requested project could not be found.",
-          variant: "destructive",
-        })
+        toast.info("Project not found.")
         router.push("/dashboard")
         setPageLoading(false)
         return
       }
 
       setProject(projectResponse.data)
+
+      // Auto-connect to database
+      await handleConnect(projectId)
 
       const historyResponse = await apiClient.getChatHistory(projectId)
       if (historyResponse.success && historyResponse.data) {
@@ -99,19 +135,11 @@ export default function ProjectChatPage() {
         }
         setMessages((prev) => [...prev, aiMessage])
       } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to generate response.",
-          variant: "destructive",
-        })
+        toast.error(response.error || "Failed to get response from AI.")
       }
     } catch (error) {
       console.error("[v0] Error sending message:", error)
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -123,30 +151,50 @@ export default function ProjectChatPage() {
   }
 
   const handleConfirmRunSQL = async () => {
+    if (!project) return
+
     setShowConfirmModal(false)
     setIsExecuting(true)
 
     const executingMessage: Message = {
       id: Date.now().toString(),
-      text: "Running SQL query...",
+      text: "Executing SQL query...",
       isUser: false,
     }
     setMessages((prev) => [...prev, executingMessage])
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await apiClient.executeSQL(project.id, pendingSQL)
 
-      const successMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "✅ SQL executed successfully on database.\n\nQuery completed in 0.23s. Rows affected: 1",
-        isUser: false,
+      if (response.success && response.data) {
+        const result = response.data
+        let resultText = `✅ ${result.message}\n\n`
+
+        if (result.columns && result.rows && result.rows.length > 0) {
+          resultText += `Returned ${result.row_count || result.rows.length} row(s)\n\n`
+          resultText += `Columns: ${result.columns.join(", ")}`
+        } else if (result.affected_rows !== undefined) {
+          resultText += `Rows affected: ${result.affected_rows}`
+        } else if (result.row_count === 0) {
+          resultText += "Query returned no results"
+        }
+
+        const successMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: resultText,
+          isUser: false,
+        }
+        setMessages((prev) => [...prev.slice(0, -1), successMessage])
+        toast.success("SQL query executed successfully")
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: `❌ Error: ${response.error || "Failed to execute query"}`,
+          isUser: false,
+        }
+        setMessages((prev) => [...prev.slice(0, -1), errorMessage])
+        toast.error(response.error || "Failed to execute SQL query")
       }
-      setMessages((prev) => [...prev.slice(0, -1), successMessage])
-
-      toast({
-        title: "Success",
-        description: "SQL query executed successfully.",
-      })
     } catch (error) {
       console.error("[v0] Error executing SQL:", error)
       const errorMessage: Message = {
@@ -155,12 +203,7 @@ export default function ProjectChatPage() {
         isUser: false,
       }
       setMessages((prev) => [...prev.slice(0, -1), errorMessage])
-
-      toast({
-        title: "Error",
-        description: "Failed to execute SQL query.",
-        variant: "destructive",
-      })
+      toast.error("Failed to execute SQL query")
     } finally {
       setIsExecuting(false)
       setPendingSQL("")
@@ -211,11 +254,39 @@ export default function ProjectChatPage() {
               <p className="text-xs text-muted-foreground">AI Assistant • {project.database_type}</p>
             </div>
           </div>
-          {/* Logout button */}
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant={isConnected ? "success" : "secondary"} className="gap-1">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-600" : "bg-gray-400"}`} />
+              {isConnected ? "Connected" : "Disconnected"}
+            </Badge>
+            {isConnected ? (
+              <Button
+                onClick={() => handleDisconnect(project.id)}
+                disabled={isConnecting}
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+              >
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Disconnect
+              </Button>
+            ) : (
+              <Button
+                onClick={() => handleConnect(project.id)}
+                disabled={isConnecting}
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+              >
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Connect
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
         </div>
       </header>
 

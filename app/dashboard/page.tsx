@@ -27,11 +27,7 @@ export default function DashboardPage() {
       if (response.success && response.data) {
         setProjects(response.data)
       } else {
-        toast({
-          title: "Failed to load projects",
-          description: response.error || "Could not fetch your projects.",
-          variant: "destructive",
-        })
+        toast.error("Failed to load projects.")
       }
       setIsLoading(false)
     }
@@ -41,10 +37,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     authUtils.clearToken()
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    })
+    toast.success("Logged out successfully.")
     router.push("/login")
   }
 
@@ -122,7 +115,7 @@ export default function DashboardPage() {
                 <Card
                   key={project.id}
                   className="hover:border-primary/50 transition-colors cursor-pointer group"
-                  onClick={() => router.push(`/projects/${project.id}/chat`)}
+                  onClick={() => router.push(`/projects/${project.id}/dashboard`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">

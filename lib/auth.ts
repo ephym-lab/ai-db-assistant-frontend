@@ -1,28 +1,33 @@
 export const authUtils = {
-  setToken(token: string): void {
+  isAuthenticated: (): boolean => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", token)
+      return !!localStorage.getItem("auth_token")
     }
+    return false
   },
 
-  getToken(): string | null {
+  getToken: (): string | null => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("auth_token")
     }
     return null
   },
 
-  clearToken(): void {
+  setToken: (token: string): void => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", token)
+    }
+  },
+
+  clearToken: (): void => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_token")
     }
   },
 
-  logout(): void {
-    this.clearToken()
-  },
-
-  isAuthenticated(): boolean {
-    return !!this.getToken()
+  logout: (): void => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token")
+    }
   },
 }

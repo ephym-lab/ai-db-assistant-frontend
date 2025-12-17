@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast"
 import { Database } from "lucide-react"
 import { apiClient } from "@/lib/api"
-import { authUtils } from "@/lib/auth"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -25,11 +24,7 @@ export default function SignupPage() {
     e.preventDefault()
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords do not match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      })
+      toast.error("Passwords do not match")
       return
     }
 
@@ -37,19 +32,11 @@ export default function SignupPage() {
 
     const response = await apiClient.signup(name, email, password)
 
-    if (response.success && response.data?.token) {
-      authUtils.setToken(response.data.token)
-      toast({
-        title: "Account created!",
-        description: "Welcome to AI Database Assistant.",
-      })
-      router.push("/dashboard")
+    if (response.success) {
+      toast.success("Account created successfully! Please log in.")
+      router.push("/login")
     } else {
-      toast({
-        title: "Signup failed",
-        description: response.error || "An account with this email already exists.",
-        variant: "destructive",
-      })
+      toast.error(`Signup failed: ${response.error}`)
     }
 
     setIsLoading(false)

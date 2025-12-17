@@ -1,14 +1,14 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { fakeAuth } from "@/lib/fakeAuth"
+import { authUtils } from "@/lib/auth"
 
 export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (fakeAuth.isAuthenticated()) {
+    if (authUtils.isAuthenticated()) {
       router.push("/dashboard")
     } else {
       router.push("/login")

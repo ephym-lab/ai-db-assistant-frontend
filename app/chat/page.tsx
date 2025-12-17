@@ -40,10 +40,7 @@ export default function ChatPage() {
 
   const handleLogout = () => {
     fakeAuth.logout()
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    })
+    toast.success("Logged out successfully.")
     router.push("/login")
   }
 
@@ -98,11 +95,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
       console.error("[v0] Error generating AI response:", error)
-      toast({
-        title: "Error",
-        description: "Failed to generate response. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("Failed to get response from AI assistant.")
     } finally {
       setIsLoading(false)
     }
@@ -136,10 +129,7 @@ export default function ChatPage() {
     }
     setMessages((prev) => [...prev.slice(0, -1), successMessage])
 
-    toast({
-      title: "Success",
-      description: "SQL query executed successfully.",
-    })
+    toast.success("SQL query executed successfully.")
 
     setIsExecuting(false)
     setPendingSQL("")

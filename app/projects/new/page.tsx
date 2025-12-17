@@ -1,95 +1,67 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { projectManager } from "@/lib/fakeAuth"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, Database, Loader2, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Database, Loader2, Shield } from "lucide-react"
+import { apiClient } from "@/lib/api"
+import { authUtils } from "@/lib/auth"
 
 export default function NewProjectPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [name, setName] = useState("")
-  const [databaseType, setDatabaseType] = useState<"MySQL" | "PostgreSQL">("PostgreSQL")
+  const [description, setDescription] = useState("")
+  const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql">("postgresql")
   const [connectionString, setConnectionString] = useState("")
-  const [isTestingConnection, setIsTestingConnection] = useState(false)
-  const [connectionTested, setConnectionTested] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const handleTestConnection = async () => {
-    if (!connectionString) {
-      toast({
-        title: "Connection string required",
-        description: "Please enter a connection string to test.",
-        variant: "destructive",
-      })
-      return
+  // Permission states
+  const [allowDDL, setAllowDDL] = useState(true)
+  const [allowWrite, setAllowWrite] = useState(true)
+  const [allowRead, setAllowRead] = useState(true)
+  const [allowDelete, setAllowDelete] = useState(true)
+
+  useEffect(() => {
+    if (!authUtils.isAuthenticated()) {
+      router.push("/login")
     }
-
-    setIsTestingConnection(true)
-    const success = await projectManager.testConnection(connectionString)
-
-    if (success) {
-      setConnectionTested(true)
-      toast({
-        title: "Connection successful",
-        description: "Database connection verified successfully.",
-      })
-    } else {
-      toast({
-        title: "Connection failed",
-        description: "Could not connect to the database. Please check your connection string.",
-        variant: "destructive",
-      })
-    }
-
-    setIsTestingConnection(false)
-  }
+  }, [router])
 
   const handleSave = async () => {
     if (!name || !connectionString) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
     setIsSaving(true)
 
-    try {
-      const project = projectManager.createProject({
-        name,
-        databaseType,
-        connectionString,
-      })
+    const response = await apiClient.createProject(name, description, databaseType, connectionString, {
+      allow_ddl: allowDDL,
+      allow_write: allowWrite,
+      allow_read: allowRead,
+      allow_delete: allowDelete,
+    })
 
-      toast({
-        title: "Project created",
-        description: "Your project has been created successfully.",
-      })
-
-      router.push(`/projects/${project.id}/dashboard`)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create project. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
+    if (response.success && response.data) {
+      toast.success("Project created successfully")
+      router.push(`/projects/${response.data.id}/dashboard`)
+    } else {
+      toast.error(`Failed to create project: ${response.error}`)
     }
+
+    setIsSaving(false)
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 h-16 flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
@@ -104,7 +76,6 @@ export default function NewProjectPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <Card>
@@ -125,14 +96,26 @@ export default function NewProjectPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Brief description of your project"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="bg-input border-border resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="database-type">Database Type *</Label>
-                <Select value={databaseType} onValueChange={(value: "MySQL" | "PostgreSQL") => setDatabaseType(value)}>
+                <Select value={databaseType} onValueChange={(value: "postgresql" | "mysql") => setDatabaseType(value)}>
                   <SelectTrigger id="database-type" className="bg-input border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PostgreSQL">PostgreSQL</SelectItem>
-                    <SelectItem value="MySQL">MySQL</SelectItem>
+                    <SelectItem value="postgresql">PostgreSQL</SelectItem>
+                    <SelectItem value="mysql">MySQL</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -142,12 +125,13 @@ export default function NewProjectPage() {
                 <Input
                   id="connection-string"
                   type="password"
-                  placeholder="postgresql://user:password@host:port/database"
+                  placeholder={
+                    databaseType === "postgresql"
+                      ? "postgresql://user:password@host:port/database"
+                      : "mysql://user:password@host:port/database"
+                  }
                   value={connectionString}
-                  onChange={(e) => {
-                    setConnectionString(e.target.value)
-                    setConnectionTested(false)
-                  }}
+                  onChange={(e) => setConnectionString(e.target.value)}
                   className="bg-input border-border font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -155,39 +139,71 @@ export default function NewProjectPage() {
                 </p>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleTestConnection}
-                  disabled={isTestingConnection || !connectionString}
-                  className="flex-1 bg-transparent"
-                >
-                  {isTestingConnection ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Testing...
-                    </>
-                  ) : connectionTested ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-2 text-accent" />
-                      Connection Verified
-                    </>
-                  ) : (
-                    "Test Connection"
-                  )}
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving || !name || !connectionString} className="flex-1">
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Project"
-                  )}
-                </Button>
+              {/* Permissions Section */}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  <Label className="text-base font-semibold">Permissions</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Configure what operations are allowed for this project
+                </p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="flex-1">
+                      <Label htmlFor="allow-ddl" className="font-medium">
+                        Allow DDL Operations
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        CREATE, ALTER, DROP, RENAME tables and schemas
+                      </p>
+                    </div>
+                    <Switch id="allow-ddl" checked={allowDDL} onCheckedChange={setAllowDDL} />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="flex-1">
+                      <Label htmlFor="allow-write" className="font-medium">
+                        Allow Write Operations
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">INSERT, UPDATE data in tables</p>
+                    </div>
+                    <Switch id="allow-write" checked={allowWrite} onCheckedChange={setAllowWrite} />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="flex-1">
+                      <Label htmlFor="allow-read" className="font-medium">
+                        Allow Read Operations
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">SELECT data from tables</p>
+                    </div>
+                    <Switch id="allow-read" checked={allowRead} onCheckedChange={setAllowRead} />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="flex-1">
+                      <Label htmlFor="allow-delete" className="font-medium">
+                        Allow Delete Operations
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">DELETE, TRUNCATE data from tables</p>
+                    </div>
+                    <Switch id="allow-delete" checked={allowDelete} onCheckedChange={setAllowDelete} />
+                  </div>
+                </div>
               </div>
+
+              <Button onClick={handleSave} disabled={isSaving || !name || !connectionString} className="w-full">
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Project"
+                )}
+              </Button>
             </CardContent>
           </Card>
         </div>

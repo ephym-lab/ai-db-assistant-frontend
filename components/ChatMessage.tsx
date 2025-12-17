@@ -21,10 +21,7 @@ export function ChatMessage({ message, isUser, sql, onRunSQL }: ChatMessageProps
   const handleCopy = async () => {
     await navigator.clipboard.writeText(sql || "")
     setCopied(true)
-    toast({
-      title: "Copied!",
-      description: "SQL copied to clipboard.",
-    })
+    toast.success("SQL copied to clipboard")
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -39,9 +36,8 @@ export function ChatMessage({ message, isUser, sql, onRunSQL }: ChatMessageProps
       className={`flex ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-500`}
     >
       <div
-        className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-3 ${
-          isUser ? "bg-primary text-primary-foreground" : "bg-card border border-border"
-        }`}
+        className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-3 ${isUser ? "bg-primary text-primary-foreground" : "bg-card border border-border"
+          }`}
       >
         {/* User message */}
         {isUser && <p className="text-sm leading-relaxed whitespace-pre-wrap">{message}</p>}

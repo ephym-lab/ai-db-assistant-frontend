@@ -27,17 +27,10 @@ export default function LoginPage() {
 
     if (response.success && response.data?.token) {
       authUtils.setToken(response.data.token)
-      toast({
-        title: "Welcome back!",
-        description: "Successfully logged in.",
-      })
+      toast.success("Logged in successfully.")
       router.push("/dashboard")
     } else {
-      toast({
-        title: "Login failed",
-        description: response.error || "Invalid email or password.",
-        variant: "destructive",
-      })
+      toast.error(response.error || "Login failed. Please try again.")
     }
 
     setIsLoading(false)

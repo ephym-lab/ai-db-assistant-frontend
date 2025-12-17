@@ -15,6 +15,17 @@ export interface User {
   updated_at: string
 }
 
+export interface Permission {
+  id: number
+  project_id: number
+  allow_ddl: boolean
+  allow_write: boolean
+  allow_read: boolean
+  allow_delete: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Project {
   id: number
   user_id: number
@@ -25,6 +36,46 @@ export interface Project {
   created_at: string
   updated_at: string
   user?: User
+  permission?: Permission
+}
+
+export interface ColumnInfo {
+  name: string
+  type: string
+  nullable: boolean
+}
+
+export interface TableInfo {
+  name: string
+  columns: ColumnInfo[]
+}
+
+export interface DatabaseInfo {
+  connected: boolean
+  database_type: string
+  database_name: string
+  tables: TableInfo[]
+}
+
+export interface QueryResult {
+  columns?: string[]
+  rows?: unknown[][]
+  row_count?: number
+  affected_rows?: number
+  message: string
+}
+
+export interface ValidationResult {
+  valid: boolean
+  message: string
+  query_type?: string
+  estimated_cost?: string
+}
+
+export interface ConnectionResult {
+  session_id: string
+  message: string
+  database_type: string
 }
 
 export interface ProjectSummary {
@@ -104,11 +155,18 @@ class ApiClient {
         options.body = JSON.stringify(body)
       }
 
+      console.log("[v0] API Request:", { method, endpoint, body })
+
       const response = await fetch(url, options)
       const data = await response.json()
 
+      console.log("[v0] API Response:", { status: response.status, data })
+
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`)
+        return {
+          success: false,
+          error: data.error || `HTTP ${response.status}`,
+        }
       }
 
       return data
@@ -122,7 +180,7 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async signup(name: string, email: string, password: string): Promise<ApiResponse<{ token: string; user: User }>> {
+  async signup(name: string, email: string, password: string): Promise<ApiResponse<{ user: User }>> {
     return this.request("POST", "/api/auth/signup", { name, email, password })
   }
 
@@ -136,8 +194,23 @@ class ApiClient {
     description: string,
     database_type: "postgresql" | "mysql",
     connection_string: string,
+    permissions?: {
+      allow_ddl?: boolean
+      allow_write?: boolean
+      allow_read?: boolean
+      allow_delete?: boolean
+    },
   ): Promise<ApiResponse<Project>> {
-    return this.request("POST", "/api/projects", { name, description, database_type, connection_string })
+    return this.request("POST", "/api/projects", {
+      name,
+      description,
+      database_type,
+      connection_string,
+      allow_ddl: permissions?.allow_ddl ?? true,
+      allow_write: permissions?.allow_write ?? true,
+      allow_read: permissions?.allow_read ?? true,
+      allow_delete: permissions?.allow_delete ?? true,
+    })
   }
 
   async getProjects(): Promise<ApiResponse<Project[]>> {
@@ -148,7 +221,18 @@ class ApiClient {
     return this.request("GET", `/api/projects/${id}`)
   }
 
-  async updateProject(id: number, updates: Partial<Project>): Promise<ApiResponse<Project>> {
+  async updateProject(
+    id: number,
+    updates: {
+      name?: string
+      description?: string
+      connection_string?: string
+      allow_ddl?: boolean
+      allow_write?: boolean
+      allow_read?: boolean
+      allow_delete?: boolean
+    },
+  ): Promise<ApiResponse<Project>> {
     return this.request("PUT", `/api/projects/${id}`, updates)
   }
 
@@ -172,6 +256,35 @@ class ApiClient {
 
   async getChatHistory(projectId: number): Promise<ApiResponse<ChatMessage[]>> {
     return this.request("GET", `/api/chat/${projectId}/history`)
+  }
+
+  // Database operation endpoints
+  async connectDatabase(projectId: number): Promise<ApiResponse<ConnectionResult>> {
+    return this.request("POST", `/api/projects/${projectId}/connect-db`)
+  }
+
+  async disconnectDatabase(projectId: number): Promise<ApiResponse<{ message: string }>> {
+    return this.request("POST", `/api/projects/${projectId}/disconnect-db`)
+  }
+
+  async executeSQL(
+    projectId: number,
+    query: string,
+    dryRun: boolean = false,
+  ): Promise<ApiResponse<QueryResult>> {
+    return this.request("POST", `/api/projects/${projectId}/execute-sql`, { query, dry_run: dryRun })
+  }
+
+  async validateSQL(projectId: number, query: string): Promise<ApiResponse<ValidationResult>> {
+    return this.request("POST", `/api/projects/${projectId}/validate-sql`, { query })
+  }
+
+  async getDatabaseInfo(projectId: number): Promise<ApiResponse<DatabaseInfo>> {
+    return this.request("GET", `/api/projects/${projectId}/db-info`)
+  }
+
+  async getProjectPermissions(projectId: number): Promise<ApiResponse<Permission>> {
+    return this.request("GET", `/api/projects/${projectId}/permissions`)
   }
 }
 
