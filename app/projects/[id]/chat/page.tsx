@@ -9,7 +9,7 @@ import { ChatInput } from "@/components/ChatInput"
 import { ProjectNavigation } from "@/components/ProjectNavigation"
 import { ConfirmModal } from "@/components/ConfirmModal"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, Database, Loader2, LogOut } from "lucide-react"
+import { ArrowLeft, Database, Loader2, LogOut, Settings } from "lucide-react"
 import { apiClient, type Project, type ChatMessage as ChatMessageType } from "@/lib/api"
 import { authUtils } from "@/lib/auth"
 
@@ -277,6 +277,10 @@ export default function ProjectChatPage() {
               Connect
             </Button>
           )}
+          <Button variant="ghost" size="sm" onClick={() => router.push(`/projects/${project.id}/settings`)} className="gap-2">
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </Button>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Logout</span>

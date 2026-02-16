@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { ProjectNavigation } from "@/components/ProjectNavigation"
+import { KnowledgeManagement } from "@/components/KnowledgeManagement"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -277,6 +278,9 @@ export default function ProjectSettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Knowledge Management */}
+                    <KnowledgeManagement projectId={project.id} />
 
                     {/* Actions */}
                     <div className="flex items-center gap-3">

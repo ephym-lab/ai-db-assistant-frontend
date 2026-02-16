@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { DatabaseSchema } from "@/components/DatabaseSchema"
 import { ProjectNavigation } from "@/components/ProjectNavigation"
-import { KnowledgeManagement } from "@/components/KnowledgeManagement"
 import { ArrowLeft, Database, MessageSquare, Loader2, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient, type Project, type ProjectSummary, type DatabaseSchema as DatabaseSchemaType } from "@/lib/api"
@@ -315,9 +314,6 @@ export default function ProjectDashboardPage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Knowledge Management */}
-          <KnowledgeManagement projectId={project.id} />
 
           {/* Database Schema */}
           <DatabaseSchema projectId={project.id} />
