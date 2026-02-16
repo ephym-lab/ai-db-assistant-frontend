@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChatMessage } from "@/components/ChatMessage"
 import { ChatInput } from "@/components/ChatInput"
+import { ProjectNavigation } from "@/components/ProjectNavigation"
 import { ConfirmModal } from "@/components/ConfirmModal"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Database, Loader2, LogOut } from "lucide-react"
@@ -114,6 +115,11 @@ export default function ProjectChatPage() {
   const handleSendMessage = async (text: string) => {
     if (!project) return
 
+    if (!isConnected) {
+      toast.error("Please connect to the database first")
+      return
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -146,6 +152,10 @@ export default function ProjectChatPage() {
   }
 
   const handleRunSQL = (sql: string) => {
+    if (!isConnected) {
+      toast.error("Please connect to the database first")
+      return
+    }
     setPendingSQL(sql)
     setShowConfirmModal(true)
   }
@@ -239,56 +249,40 @@ export default function ProjectChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 h-16 flex items-center gap-3 justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="w-5 h-5" />
+      <ProjectNavigation project={project} isConnected={isConnected} />
+
+      {/* Connection Controls */}
+      <div className="border-b border-border bg-card/30">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-end gap-2">
+          {isConnected ? (
+            <Button
+              onClick={() => handleDisconnect(project.id)}
+              disabled={isConnecting}
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+            >
+              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Disconnect
             </Button>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Database className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-balance">{project.name}</h1>
-              <p className="text-xs text-muted-foreground">AI Assistant • {project.database_type}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={isConnected ? "success" : "secondary"} className="gap-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-600" : "bg-gray-400"}`} />
-              {isConnected ? "Connected" : "Disconnected"}
-            </Badge>
-            {isConnected ? (
-              <Button
-                onClick={() => handleDisconnect(project.id)}
-                disabled={isConnecting}
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-              >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Disconnect
-              </Button>
-            ) : (
-              <Button
-                onClick={() => handleConnect(project.id)}
-                disabled={isConnecting}
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-              >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Connect
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+          ) : (
+            <Button
+              onClick={() => handleConnect(project.id)}
+              disabled={isConnecting}
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+            >
+              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Connect
             </Button>
-          </div>
+          )}
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
         </div>
-      </header>
+      </div>
 
       {/* Chat Area */}
       <main className="flex-1 overflow-y-auto">
@@ -334,7 +328,11 @@ export default function ProjectChatPage() {
       {/* Input Area */}
       <div className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
-          <ChatInput onSend={handleSendMessage} disabled={isLoading || isExecuting} />
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isLoading || isExecuting || !isConnected}
+            placeholder={isConnected ? "Ask me to generate SQL queries..." : "Connect to database to start chatting..."}
+          />
         </div>
       </div>
 

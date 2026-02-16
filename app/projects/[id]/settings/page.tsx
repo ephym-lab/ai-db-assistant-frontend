@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { ProjectNavigation } from "@/components/ProjectNavigation"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -32,6 +33,7 @@ export default function ProjectSettingsPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [isConnected, setIsConnected] = useState(false)
 
     // Form state
     const [name, setName] = useState("")
@@ -86,6 +88,12 @@ export default function ProjectSettingsPage() {
 
         loadProject()
     }, [params.id, router, toast])
+
+    useEffect(() => {
+        // Check connection status (we'll assume connected for settings page)
+        // In a real app, you might want to fetch this from the API
+        setIsConnected(true)
+    }, [])
 
     const handleSave = async () => {
         if (!project || !name) {
@@ -155,22 +163,7 @@ export default function ProjectSettingsPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="container mx-auto px-4 h-16 flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => router.push(`/projects/${project.id}/dashboard`)}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Database className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-balance">Project Settings</h1>
-                            <p className="text-xs text-muted-foreground">{project.name}</p>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <ProjectNavigation project={project} isConnected={isConnected} />
 
             <main className="container mx-auto px-4 py-8">
                 <div className="max-w-2xl mx-auto space-y-6">

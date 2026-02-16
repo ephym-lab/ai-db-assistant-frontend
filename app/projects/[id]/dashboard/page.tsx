@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DatabaseSchema } from "@/components/DatabaseSchema"
+import { ProjectNavigation } from "@/components/ProjectNavigation"
+import { KnowledgeManagement } from "@/components/KnowledgeManagement"
 import { ArrowLeft, Database, MessageSquare, Loader2, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { apiClient, type Project, type ProjectSummary } from "@/lib/api"
+import { apiClient, type Project, type ProjectSummary, type DatabaseSchema as DatabaseSchemaType } from "@/lib/api"
 import { authUtils } from "@/lib/auth"
 
 export default function ProjectDashboardPage() {
@@ -17,9 +19,11 @@ export default function ProjectDashboardPage() {
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [summary, setSummary] = useState<ProjectSummary | null>(null)
+  const [schema, setSchema] = useState<DatabaseSchemaType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   const handleConnect = async (projectId: number) => {
     setIsConnecting(true)
@@ -82,6 +86,12 @@ export default function ProjectDashboardPage() {
         setSummary(summaryResponse.data)
       }
 
+      // Fetch schema data
+      const schemaResponse = await apiClient.getProjectSchema(projectId)
+      if (schemaResponse.success && schemaResponse.data) {
+        setSchema(schemaResponse.data)
+      }
+
       setIsLoading(false)
     }
 
@@ -125,56 +135,43 @@ export default function ProjectDashboardPage() {
     )
   }
 
+  const handleNavigate = (path: string) => {
+    setIsNavigating(true)
+    router.push(path)
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="w-5 h-5" />
+      <ProjectNavigation project={project} isConnected={isConnected} />
+
+      {/* Connection Controls */}
+      <div className="border-b border-border bg-card/30">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-end gap-2">
+          {isConnected ? (
+            <Button
+              onClick={() => handleDisconnect(project.id)}
+              disabled={isConnecting}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Disconnect
             </Button>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Database className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-balance">{project.name}</h1>
-              <p className="text-xs text-muted-foreground">{project.database_type}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={isConnected ? "success" : "secondary"} className="gap-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-600" : "bg-gray-400"}`} />
-              {isConnected ? "Connected" : "Disconnected"}
-            </Badge>
-            {isConnected ? (
-              <Button
-                onClick={() => handleDisconnect(project.id)}
-                disabled={isConnecting}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Disconnect
-              </Button>
-            ) : (
-              <Button
-                onClick={() => handleConnect(project.id)}
-                disabled={isConnecting}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Connect
-              </Button>
-            )}
-            <Button onClick={() => router.push(`/projects/${project.id}/settings`)} variant="outline" size="sm">
-              Settings
+          ) : (
+            <Button
+              onClick={() => handleConnect(project.id)}
+              disabled={isConnecting}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Connect
             </Button>
-          </div>
+          )}
         </div>
-      </header>
+      </div>
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto space-y-6">
@@ -185,7 +182,7 @@ export default function ProjectDashboardPage() {
                 <CardDescription className="flex items-center gap-2">Tables</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{summary?.table_count || 0}</div>
+                <div className="text-3xl font-bold">{schema?.table_count || 0}</div>
               </CardContent>
             </Card>
 
@@ -319,6 +316,9 @@ export default function ProjectDashboardPage() {
             </Card>
           )}
 
+          {/* Knowledge Management */}
+          <KnowledgeManagement projectId={project.id} />
+
           {/* Database Schema */}
           <DatabaseSchema projectId={project.id} />
 
@@ -330,8 +330,8 @@ export default function ProjectDashboardPage() {
               <p className="text-muted-foreground mb-6 max-w-md text-pretty">
                 Open the AI chat to start generating SQL queries and managing your database
               </p>
-              <Button onClick={() => router.push(`/projects/${project.id}/chat`)} size="lg" className="gap-2">
-                <MessageSquare className="w-4 h-4" />
+              <Button onClick={() => handleNavigate(`/projects/${project.id}/chat`)} disabled={isNavigating} size="lg" className="gap-2">
+                {isNavigating ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                 Open AI Chat
               </Button>
             </CardContent>
@@ -341,11 +341,12 @@ export default function ProjectDashboardPage() {
 
       {/* Floating Chat Button */}
       <Button
-        onClick={() => router.push(`/projects/${project.id}/chat`)}
+        onClick={() => handleNavigate(`/projects/${project.id}/chat`)}
+        disabled={isNavigating}
         size="icon"
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl"
       >
-        <MessageSquare className="w-6 h-6" />
+        {isNavigating ? <Loader2 className="w-6 h-6 animate-spin" /> : <MessageSquare className="w-6 h-6" />}
       </Button>
     </div>
   )

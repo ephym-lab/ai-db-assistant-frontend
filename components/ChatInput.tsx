@@ -10,9 +10,10 @@ import { Send } from "lucide-react"
 interface ChatInputProps {
   onSend: (message: string) => void
   disabled?: boolean
+  placeholder?: string
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, placeholder = "Ask me to generate SQL queries..." }: ChatInputProps) {
   const [input, setInput] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,7 +37,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Ask me to generate SQL queries..."
+        placeholder={placeholder}
         className="min-h-[60px] max-h-[200px] resize-none bg-input border-border"
         disabled={disabled}
       />

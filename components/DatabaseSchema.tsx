@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Database, RefreshCw, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
-import { apiClient, type DatabaseInfo, type TableInfo } from "@/lib/api"
+import { apiClient, type DatabaseSchema as DatabaseSchemaType, type TableInfo } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 interface DatabaseSchemaProps {
@@ -14,14 +14,14 @@ interface DatabaseSchemaProps {
 
 export function DatabaseSchema({ projectId }: DatabaseSchemaProps) {
     const { toast } = useToast()
-    const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null)
+    const [dbInfo, setDbInfo] = useState<DatabaseSchemaType | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set())
 
     const loadSchema = async () => {
         setIsLoading(true)
         try {
-            const response = await apiClient.getDatabaseInfo(projectId)
+            const response = await apiClient.getProjectSchema(projectId)
 
             if (response.success && response.data) {
                 setDbInfo(response.data)
@@ -45,7 +45,7 @@ export function DatabaseSchema({ projectId }: DatabaseSchemaProps) {
     useEffect(() => {
         loadSchema()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [projectId, loadSchema])
+    }, [projectId])
 
     const toggleTable = (tableName: string) => {
         setExpandedTables((prev) => {
@@ -79,7 +79,8 @@ export function DatabaseSchema({ projectId }: DatabaseSchemaProps) {
                     <div className="text-center">
                         <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-sm text-muted-foreground mb-4">Database schema not available</p>
-                        <Button onClick={loadSchema} size="sm" variant="outline">
+                        <Button onClick={loadSchema} disabled={isLoading} size="sm" variant="outline" className="gap-2">
+                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                             Try Again
                         </Button>
                     </div>
@@ -98,7 +99,7 @@ export function DatabaseSchema({ projectId }: DatabaseSchemaProps) {
                             Database Schema
                         </CardTitle>
                         <CardDescription>
-                            {dbInfo.database_name} • {dbInfo.tables.length} {dbInfo.tables.length === 1 ? "table" : "tables"}
+                            {dbInfo.database} • {dbInfo.table_count} {dbInfo.table_count === 1 ? "table" : "tables"}
                         </CardDescription>
                     </div>
                     <Button onClick={loadSchema} disabled={isLoading} size="sm" variant="outline" className="gap-2">
@@ -108,13 +109,7 @@ export function DatabaseSchema({ projectId }: DatabaseSchemaProps) {
                 </div>
             </CardHeader>
             <CardContent>
-                {!dbInfo.connected && (
-                    <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                            Database is not connected. Schema information may be outdated.
-                        </p>
-                    </div>
-                )}
+
 
                 {dbInfo.tables.length === 0 ? (
                     <div className="text-center py-8">

@@ -20,6 +20,8 @@ export default function NewProjectPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [databaseType, setDatabaseType] = useState<"postgresql" | "mysql">("postgresql")
+  const [provider, setProvider] = useState("local")
+  const [customProvider, setCustomProvider] = useState("")
   const [connectionString, setConnectionString] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
@@ -41,9 +43,16 @@ export default function NewProjectPage() {
       return
     }
 
+    if (provider === "other" && !customProvider.trim()) {
+      toast.error("Please enter a custom provider name")
+      return
+    }
+
     setIsSaving(true)
 
-    const response = await apiClient.createProject(name, description, databaseType, connectionString, {
+    const finalProvider = provider === "other" ? customProvider.trim() : provider
+
+    const response = await apiClient.createProject(name, description, databaseType, finalProvider, connectionString, {
       allow_ddl: allowDDL,
       allow_write: allowWrite,
       allow_read: allowRead,
@@ -119,6 +128,48 @@ export default function NewProjectPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="provider">Database Provider *</Label>
+                <Select value={provider} onValueChange={setProvider}>
+                  <SelectTrigger id="provider" className="bg-input border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="local">Local</SelectItem>
+                    <SelectItem value="render">Render</SelectItem>
+                    <SelectItem value="supabase">Supabase</SelectItem>
+                    <SelectItem value="aws-rds">AWS RDS</SelectItem>
+                    <SelectItem value="google-cloud-sql">Google Cloud SQL</SelectItem>
+                    <SelectItem value="azure-database">Azure Database</SelectItem>
+                    <SelectItem value="railway">Railway</SelectItem>
+                    <SelectItem value="planetscale">PlanetScale</SelectItem>
+                    <SelectItem value="neon">Neon</SelectItem>
+                    <SelectItem value="digitalocean">DigitalOcean</SelectItem>
+                    <SelectItem value="heroku">Heroku</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select where your database is hosted
+                </p>
+              </div>
+
+              {provider === "other" && (
+                <div className="space-y-2">
+                  <Label htmlFor="custom-provider">Custom Provider Name *</Label>
+                  <Input
+                    id="custom-provider"
+                    placeholder="Enter provider name (e.g., Vercel Postgres, Cockroach DB)"
+                    value={customProvider}
+                    onChange={(e) => setCustomProvider(e.target.value)}
+                    className="bg-input border-border"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Specify your custom database provider
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="connection-string">Connection String *</Label>

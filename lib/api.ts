@@ -32,6 +32,7 @@ export interface Project {
   name: string
   description: string
   database_type: "postgresql" | "mysql"
+  provider: string
   connection_string: string
   created_at: string
   updated_at: string
@@ -54,6 +55,15 @@ export interface DatabaseInfo {
   connected: boolean
   database_type: string
   database_name: string
+  tables: TableInfo[]
+}
+
+export interface DatabaseSchema {
+  db_type: string
+  database: string
+  host: string
+  port: number
+  table_count: number
   tables: TableInfo[]
 }
 
@@ -121,6 +131,36 @@ export interface ChatResponse {
     query?: string
   }
 }
+
+export interface IngestSchemaRequest {
+  clear_existing?: boolean
+}
+
+export interface IngestSchemaResponse {
+  success: boolean
+  project_id: string
+  tables_ingested?: number
+  message: string
+  error?: string
+}
+
+export interface QdrantSchemaResponse {
+  success: boolean
+  project_id: string
+  db_type?: string
+  table_count: number
+  tables: TableInfo[]
+  message: string
+  error?: string
+}
+
+export interface DeleteSchemaResponse {
+  success: boolean
+  project_id: string
+  message: string
+  error?: string
+}
+
 
 class ApiClient {
   private getAuthToken(): string | null {
@@ -193,6 +233,7 @@ class ApiClient {
     name: string,
     description: string,
     database_type: "postgresql" | "mysql",
+    provider: string,
     connection_string: string,
     permissions?: {
       allow_ddl?: boolean
@@ -205,6 +246,7 @@ class ApiClient {
       name,
       description,
       database_type,
+      provider,
       connection_string,
       allow_ddl: permissions?.allow_ddl ?? true,
       allow_write: permissions?.allow_write ?? true,
@@ -283,9 +325,34 @@ class ApiClient {
     return this.request("GET", `/api/projects/${projectId}/db-info`)
   }
 
+  async getProjectSchema(projectId: number): Promise<ApiResponse<DatabaseSchema>> {
+    return this.request("GET", `/api/projects/${projectId}/get-schema`)
+  }
+
   async getProjectPermissions(projectId: number): Promise<ApiResponse<Permission>> {
     return this.request("GET", `/api/projects/${projectId}/permissions`)
   }
+
+  // Schema management endpoints (Qdrant)
+  async ingestSchema(
+    projectId: number,
+    clearExisting: boolean = false,
+  ): Promise<ApiResponse<IngestSchemaResponse>> {
+    return this.request("POST", `/api/projects/${projectId}/ingest-schema`, { clear_existing: clearExisting })
+  }
+
+  async updateSchema(projectId: number): Promise<ApiResponse<IngestSchemaResponse>> {
+    return this.request("POST", `/api/projects/${projectId}/update-schema`)
+  }
+
+  async getSchemaFromQdrant(projectId: number): Promise<ApiResponse<QdrantSchemaResponse>> {
+    return this.request("GET", `/api/projects/${projectId}/get-schema-from-qdrant`)
+  }
+
+  async deleteSchema(projectId: number): Promise<ApiResponse<DeleteSchemaResponse>> {
+    return this.request("DELETE", `/api/projects/${projectId}/delete-schema`)
+  }
+
 }
 
 export const apiClient = new ApiClient()

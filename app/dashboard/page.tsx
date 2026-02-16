@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const { toast } = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   useEffect(() => {
     if (!authUtils.isAuthenticated()) {
@@ -49,6 +50,11 @@ export default function DashboardPage() {
     })
   }
 
+  const handleNavigate = (path: string) => {
+    setIsNavigating(true)
+    router.push(path)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -79,8 +85,8 @@ export default function DashboardPage() {
               <h2 className="text-3xl font-bold text-balance">Your Projects</h2>
               <p className="text-muted-foreground mt-1">Manage your database projects and AI assistants</p>
             </div>
-            <Button onClick={() => router.push("/projects/new")} className="gap-2">
-              <Plus className="w-4 h-4" />
+            <Button onClick={() => handleNavigate("/projects/new")} disabled={isNavigating} className="gap-2">
+              {isNavigating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               New Project
             </Button>
           </div>
@@ -103,8 +109,8 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground mb-6 max-w-md text-pretty">
                   Create your first project to start using the AI Database Assistant
                 </p>
-                <Button onClick={() => router.push("/projects/new")} className="gap-2">
-                  <Plus className="w-4 h-4" />
+                <Button onClick={() => handleNavigate("/projects/new")} disabled={isNavigating} className="gap-2">
+                  {isNavigating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Create Your First Project
                 </Button>
               </CardContent>
@@ -115,7 +121,7 @@ export default function DashboardPage() {
                 <Card
                   key={project.id}
                   className="hover:border-primary/50 transition-colors cursor-pointer group"
-                  onClick={() => router.push(`/projects/${project.id}/dashboard`)}
+                  onClick={() => handleNavigate(`/projects/${project.id}/dashboard`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
