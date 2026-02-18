@@ -75,6 +75,8 @@ export default function LoginPage() {
               />
             </div>
           </CardContent>
+          <div className="pt-2" />
+
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Login"}
