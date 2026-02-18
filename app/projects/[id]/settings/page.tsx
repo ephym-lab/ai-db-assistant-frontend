@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Database, Loader2, Shield, Trash2, Save } from "lucide-react"
 import { apiClient, type Project } from "@/lib/api"
 import { authUtils } from "@/lib/auth"
+import { connectionStateManager } from "@/lib/connectionState"
 
 export default function ProjectSettingsPage() {
     const router = useRouter()
@@ -35,6 +36,7 @@ export default function ProjectSettingsPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [isConnected, setIsConnected] = useState(false)
+    const [isConnecting, setIsConnecting] = useState(false)
 
     // Form state
     const [name, setName] = useState("")
@@ -91,10 +93,68 @@ export default function ProjectSettingsPage() {
     }, [params.id, router, toast])
 
     useEffect(() => {
-        // Check connection status (we'll assume connected for settings page)
-        // In a real app, you might want to fetch this from the API
-        setIsConnected(true)
-    }, [])
+        if (!project) return
+
+        const projectId = project.id
+
+        // Check if already connected from previous navigation
+        const wasConnected = connectionStateManager.getConnectionState(projectId)
+        if (wasConnected) {
+            // Silently restore connection state
+            setIsConnected(true)
+        } else {
+            // First time loading this project - auto-connect
+            const autoConnect = async () => {
+                try {
+                    const response = await apiClient.connectDatabase(projectId)
+                    if (response.success) {
+                        setIsConnected(true)
+                        connectionStateManager.setConnectionState(projectId, true)
+                        toast.success("Connected to database successfully")
+                    }
+                } catch (error) {
+                    // Silent fail on settings page
+                }
+            }
+            autoConnect()
+        }
+    }, [project, toast])
+
+    const handleConnect = async (projectId: number) => {
+        setIsConnecting(true)
+        try {
+            const response = await apiClient.connectDatabase(projectId)
+            if (response.success) {
+                setIsConnected(true)
+                connectionStateManager.setConnectionState(projectId, true)
+                toast.success("Connected to database successfully")
+            } else {
+                toast.error(response.error || "Failed to connect to database")
+            }
+        } catch (error) {
+            toast.error("An error occurred while connecting to database")
+        } finally {
+            setIsConnecting(false)
+        }
+    }
+
+    const handleDisconnect = async (projectId: number) => {
+        setIsConnecting(true)
+        try {
+            const response = await apiClient.disconnectDatabase(projectId)
+            if (response.success) {
+                setIsConnected(false)
+                connectionStateManager.setConnectionState(projectId, false)
+                toast.success("Disconnected from database")
+            } else {
+                toast.error(response.error || "Failed to disconnect from database")
+            }
+        } catch (error) {
+            toast.error("An error occurred while disconnecting from database")
+        } finally {
+            setIsConnecting(false)
+        }
+    }
 
     const handleSave = async () => {
         if (!project || !name) {
@@ -164,7 +224,13 @@ export default function ProjectSettingsPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <ProjectNavigation project={project} isConnected={isConnected} />
+            <ProjectNavigation
+                project={project}
+                isConnected={isConnected}
+                isConnecting={isConnecting}
+                onConnect={() => handleConnect(project.id)}
+                onDisconnect={() => handleDisconnect(project.id)}
+            />
 
             <main className="container mx-auto px-4 py-8">
                 <div className="max-w-2xl mx-auto space-y-6">

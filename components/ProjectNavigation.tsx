@@ -3,15 +3,18 @@
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Database, LayoutDashboard, MessageSquare, Settings } from "lucide-react"
+import { ArrowLeft, Database, LayoutDashboard, MessageSquare, Settings, Loader2 } from "lucide-react"
 import type { Project } from "@/lib/api"
 
 interface ProjectNavigationProps {
     project: Project
     isConnected: boolean
+    isConnecting?: boolean
+    onConnect?: () => void
+    onDisconnect?: () => void
 }
 
-export function ProjectNavigation({ project, isConnected }: ProjectNavigationProps) {
+export function ProjectNavigation({ project, isConnected, isConnecting = false, onConnect, onDisconnect }: ProjectNavigationProps) {
     const router = useRouter()
     const pathname = usePathname()
 
@@ -52,10 +55,39 @@ export function ProjectNavigation({ project, isConnected }: ProjectNavigationPro
                             <p className="text-xs text-muted-foreground">{project.database_type}</p>
                         </div>
                     </div>
-                    <Badge variant={isConnected ? "success" : "secondary"} className="gap-1">
-                        <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-600" : "bg-gray-400"}`} />
-                        {isConnected ? "Connected" : "Disconnected"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        <Badge variant={isConnected ? "success" : "secondary"} className="gap-1">
+                            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-600" : "bg-gray-400"}`} />
+                            {isConnected ? "Connected" : "Disconnected"}
+                        </Badge>
+                        {isConnected ? (
+                            onDisconnect && (
+                                <Button
+                                    onClick={onDisconnect}
+                                    disabled={isConnecting}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-2"
+                                >
+                                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                    Disconnect
+                                </Button>
+                            )
+                        ) : (
+                            onConnect && (
+                                <Button
+                                    onClick={onConnect}
+                                    disabled={isConnecting}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-2"
+                                >
+                                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                    Connect
+                                </Button>
+                            )
+                        )}
+                    </div>
                 </div>
 
                 {/* Bottom Row: Navigation Tabs */}
@@ -68,8 +100,8 @@ export function ProjectNavigation({ project, isConnected }: ProjectNavigationPro
                                 key={tab.href}
                                 onClick={() => router.push(tab.href)}
                                 className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${active
-                                        ? "border-primary text-primary font-medium"
-                                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                                    ? "border-primary text-primary font-medium"
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />

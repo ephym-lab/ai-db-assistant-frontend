@@ -11,6 +11,7 @@ import { ArrowLeft, Database, MessageSquare, Loader2, Shield } from "lucide-reac
 import { useToast } from "@/hooks/use-toast"
 import { apiClient, type Project, type ProjectSummary, type DatabaseSchema as DatabaseSchemaType } from "@/lib/api"
 import { authUtils } from "@/lib/auth"
+import { connectionStateManager } from "@/lib/connectionState"
 
 export default function ProjectDashboardPage() {
   const router = useRouter()
@@ -30,6 +31,7 @@ export default function ProjectDashboardPage() {
       const response = await apiClient.connectDatabase(projectId)
       if (response.success) {
         setIsConnected(true)
+        connectionStateManager.setConnectionState(projectId, true)
         toast.success("Connected to database successfully")
       } else {
         toast.error(response.error || "Failed to connect to database")
@@ -47,6 +49,7 @@ export default function ProjectDashboardPage() {
       const response = await apiClient.disconnectDatabase(projectId)
       if (response.success) {
         setIsConnected(false)
+        connectionStateManager.setConnectionState(projectId, false)
         toast.success("Disconnected from database")
       } else {
         toast.error(response.error || "Failed to disconnect from database")
@@ -77,8 +80,15 @@ export default function ProjectDashboardPage() {
 
       setProject(projectResponse.data)
 
-      // Auto-connect to database
-      await handleConnect(projectId)
+      // Check if already connected from previous navigation
+      const wasConnected = connectionStateManager.getConnectionState(projectId)
+      if (wasConnected) {
+        // Silently restore connection state without API call or toast
+        setIsConnected(true)
+      } else {
+        // First time loading this project - auto-connect
+        await handleConnect(projectId)
+      }
 
       const summaryResponse = await apiClient.getProjectSummary(projectId)
       if (summaryResponse.success && summaryResponse.data) {
@@ -141,36 +151,13 @@ export default function ProjectDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <ProjectNavigation project={project} isConnected={isConnected} />
-
-      {/* Connection Controls */}
-      <div className="border-b border-border bg-card/30">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-end gap-2">
-          {isConnected ? (
-            <Button
-              onClick={() => handleDisconnect(project.id)}
-              disabled={isConnecting}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Disconnect
-            </Button>
-          ) : (
-            <Button
-              onClick={() => handleConnect(project.id)}
-              disabled={isConnecting}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Connect
-            </Button>
-          )}
-        </div>
-      </div>
+      <ProjectNavigation
+        project={project}
+        isConnected={isConnected}
+        isConnecting={isConnecting}
+        onConnect={() => handleConnect(project.id)}
+        onDisconnect={() => handleDisconnect(project.id)}
+      />
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto space-y-6">

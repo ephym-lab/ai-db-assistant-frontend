@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Database, Loader2, LogOut, Settings } from "lucide-react"
 import { apiClient, type Project, type ChatMessage as ChatMessageType } from "@/lib/api"
 import { authUtils } from "@/lib/auth"
+import { connectionStateManager } from "@/lib/connectionState"
 
 interface Message {
   id: string
@@ -41,6 +42,7 @@ export default function ProjectChatPage() {
       const response = await apiClient.connectDatabase(projectId)
       if (response.success) {
         setIsConnected(true)
+        connectionStateManager.setConnectionState(projectId, true)
         toast.success("Connected to database successfully")
       } else {
         toast.error(response.error || "Failed to connect to database")
@@ -58,6 +60,7 @@ export default function ProjectChatPage() {
       const response = await apiClient.disconnectDatabase(projectId)
       if (response.success) {
         setIsConnected(false)
+        connectionStateManager.setConnectionState(projectId, false)
         toast.success("Disconnected from database")
       } else {
         toast.error(response.error || "Failed to disconnect from database")
@@ -88,8 +91,15 @@ export default function ProjectChatPage() {
 
       setProject(projectResponse.data)
 
-      // Auto-connect to database
-      await handleConnect(projectId)
+      // Check if already connected from previous navigation
+      const wasConnected = connectionStateManager.getConnectionState(projectId)
+      if (wasConnected) {
+        // Silently restore connection state without API call or toast
+        setIsConnected(true)
+      } else {
+        // First time loading this project - auto-connect
+        await handleConnect(projectId)
+      }
 
       const historyResponse = await apiClient.getChatHistory(projectId)
       if (historyResponse.success && historyResponse.data) {
@@ -249,44 +259,13 @@ export default function ProjectChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <ProjectNavigation project={project} isConnected={isConnected} />
-
-      {/* Connection Controls */}
-      <div className="border-b border-border bg-card/30">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-end gap-2">
-          {isConnected ? (
-            <Button
-              onClick={() => handleDisconnect(project.id)}
-              disabled={isConnecting}
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-            >
-              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Disconnect
-            </Button>
-          ) : (
-            <Button
-              onClick={() => handleConnect(project.id)}
-              disabled={isConnecting}
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-            >
-              {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Connect
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/projects/${project.id}/settings`)} className="gap-2">
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Settings</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
-        </div>
-      </div>
+      <ProjectNavigation
+        project={project}
+        isConnected={isConnected}
+        isConnecting={isConnecting}
+        onConnect={() => handleConnect(project.id)}
+        onDisconnect={() => handleDisconnect(project.id)}
+      />
 
       {/* Chat Area */}
       <main className="flex-1 overflow-y-auto">
